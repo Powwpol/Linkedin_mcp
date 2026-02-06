@@ -34,6 +34,20 @@ class Settings(BaseSettings):
         description="Path to store OAuth tokens",
     )
 
+    # --- ChatGPT POC settings ---
+    base_url: str = Field(
+        default="http://localhost:8000",
+        description="Public base URL (e.g. https://xxx.ngrok-free.app)",
+    )
+    secret_key: str = Field(
+        default="change-me-in-production",
+        description="Secret key for signing session cookies",
+    )
+    db_path: str = Field(
+        default="linkedin_sessions.db",
+        description="SQLite database path for multi-user token storage",
+    )
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property

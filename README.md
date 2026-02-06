@@ -208,6 +208,127 @@ Ajoutez dans `claude_desktop_config.json` :
 - Le parametre `state` est utilise pour la protection CSRF
 - Les tokens expirent apres 60 jours (rafraichissables)
 
+---
+
+## ChatGPT Enterprise POC (No Auth Connector)
+
+This section describes how to use the LinkedIn MCP server as a **remote MCP connector** for ChatGPT Enterprise (Developer mode) with **No Auth** on the connector side and **LinkedIn OAuth 3-legged** on the server side.
+
+### Architecture
+
+```
+ChatGPT Enterprise                         Your Server
+┌──────────┐  MCP/StreamableHTTP   ┌────────────────────┐     ┌──────────┐
+│  ChatGPT │ ───────────────────── │  FastAPI (/mcp)    │ ──> │ LinkedIn │
+│  (user)  │   No Auth             │  + OAuth session   │     │   API    │
+└──────────┘                       │  + SQLite tokens   │     └──────────┘
+                                   └────────────────────┘
+                                          ▲
+                  Browser OAuth           │
+                  /auth/login ──> LinkedIn ──> /auth/callback
+```
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `LINKEDIN_CLIENT_ID` | Yes | — | LinkedIn OAuth2 Client ID |
+| `LINKEDIN_CLIENT_SECRET` | Yes | — | LinkedIn OAuth2 Client Secret |
+| `LINKEDIN_REDIRECT_URI` | Yes | `http://localhost:8000/auth/callback` | OAuth callback URL |
+| `BASE_URL` | Yes (prod) | `http://localhost:8000` | Public HTTPS URL of the server |
+| `SECRET_KEY` | Yes (prod) | `change-me-in-production` | Key for signing session cookies |
+| `DB_PATH` | No | `linkedin_sessions.db` | SQLite path for user tokens |
+| `LINKEDIN_SCOPES` | No | `openid profile email w_member_social` | OAuth scopes |
+
+### Quick Start (local)
+
+```bash
+# 1. Install
+pip install -e .
+
+# 2. Configure .env
+cp .env.example .env
+# Edit .env with your LinkedIn credentials
+
+# 3. Start the server
+linkedin-api
+# or: PYTHONPATH=src uvicorn linkedin_mcp.fastapi_app:app --reload --port 8000
+
+# 4. Expose via HTTPS (required by ChatGPT)
+ngrok http 8000
+# or: cloudflared tunnel --url http://localhost:8000
+
+# 5. Update .env with your public URL
+#    BASE_URL=https://xxxx.ngrok-free.app
+#    LINKEDIN_REDIRECT_URI=https://xxxx.ngrok-free.app/auth/callback
+#    Restart the server after changing .env
+```
+
+### Configure ChatGPT Connector
+
+1. In ChatGPT (Developer mode) go to **Settings > Connected apps > Add MCP Connector**
+2. Set the URL to: `https://YOUR_PUBLIC_URL/mcp`
+3. Set Auth to: **No Auth**
+4. Save
+
+### Authenticate LinkedIn
+
+1. Open `https://YOUR_PUBLIC_URL/auth/login` in your browser
+2. Authorize the app on LinkedIn
+3. You'll see "Authentication Successful"
+4. Go back to ChatGPT and use the tools
+
+### Available MCP Tools (POC)
+
+| Tool | Description |
+|------|-------------|
+| `get_profile` | Get the authenticated user's LinkedIn profile |
+| `list_connections` | List 1st-degree connections (paginated) |
+| `create_post` | Create a text post on LinkedIn |
+| `search_people` | Search profiles by keywords |
+
+Each tool checks for a valid LinkedIn token. If not authenticated, it returns:
+```json
+{
+  "error": true,
+  "login_required": true,
+  "message": "You are not authenticated with LinkedIn...",
+  "login_url": "https://YOUR_URL/auth/login"
+}
+```
+
+### Debug Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Landing page with setup guide |
+| `GET /me` | Current session & token info |
+| `GET /auth/status` | Auth status (JSON) |
+| `GET /health` | Health check |
+| `GET /docs` | Swagger API docs |
+
+### How It Works
+
+1. **MCP Transport**: The MCP server uses StreamableHTTP (stateless) at `/mcp`. ChatGPT sends JSON-RPC requests over HTTP POST.
+2. **Token Storage**: User tokens are stored in SQLite (`linkedin_sessions.db`) with the schema: `user_id, access_token, refresh_token, expires_at, created_at`.
+3. **Session Cookie**: After OAuth callback, a signed session cookie links the browser to the user. The MCP tools use the most recently authenticated user's token (POC single-user model).
+4. **Backward Compatibility**: The original `mcp_server.py` (stdio transport for Claude Desktop) is untouched. The legacy `token_store.json` is also maintained.
+
+### TODO for Production
+
+- [ ] **Auth ChatGPT <-> MCP**: Add OAuth 2.0 on the connector side (replace No Auth)
+- [ ] **Multi-tenant session linking**: Map MCP sessions to users via a linking code flow
+- [ ] **Secret manager**: Move tokens from SQLite to a secret manager (AWS SM, Vault, etc.)
+- [ ] **Token encryption**: Encrypt access/refresh tokens at rest
+- [ ] **Rate limiting**: Add per-user rate limiting on MCP tool calls
+- [ ] **Scope enforcement**: Restrict MCP tools based on user scopes/permissions
+- [ ] **HTTPS enforcement**: Require HTTPS in production (redirect HTTP)
+- [ ] **Token refresh**: Auto-refresh expired LinkedIn tokens using refresh_token
+- [ ] **Audit logging**: Log all tool calls with user context
+- [ ] **CORS configuration**: Lock down allowed origins for production
+
+---
+
 ## Reference API LinkedIn
 
 - [Documentation officielle](https://learn.microsoft.com/en-us/linkedin/)
