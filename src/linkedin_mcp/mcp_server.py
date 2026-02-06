@@ -24,6 +24,11 @@ from linkedin_mcp.linkedin_client import LinkedInAPIError, LinkedInClient
 from linkedin_mcp.plugins.invitations import InvitationPlugin
 from linkedin_mcp.plugins.posts import PostPlugin
 from linkedin_mcp.plugins.profiles import ProfilePlugin
+from linkedin_mcp.skills.business_context import BusinessContext, load_business_context
+from linkedin_mcp.skills.copywriting import CopywritingSkill
+from linkedin_mcp.skills.content_strategy import ContentStrategySkill
+from linkedin_mcp.skills.engagement import EngagementSkill
+from linkedin_mcp.skills.neuromarketing import NeuroMarketingSkill
 
 # ---------------------------------------------------------------------------
 # Server setup
@@ -641,42 +646,459 @@ def get_status() -> str:
                 "linkedin_withdraw_invitation",
             ],
         },
+        "skills": {
+            "neuromarketing": [
+                "skill_neuro_post",
+                "skill_neuro_catalog",
+            ],
+            "copywriting": [
+                "skill_copywriting_post",
+                "skill_copywriting_ab_test",
+                "skill_copywriting_catalog",
+            ],
+            "engagement": [
+                "skill_engagement_post",
+                "skill_engagement_hooks",
+                "skill_engagement_ctas",
+            ],
+            "content_strategy": [
+                "skill_content_calendar",
+                "skill_content_ideas",
+            ],
+            "business_context": [
+                "skill_show_business_context",
+            ],
+        },
     }, indent=2)
 
 
 # ===========================================================================
-#  PROMPTS
+#  SKILLS - Neuro-marketing, Copywriting, Engagement, Strategy
+# ===========================================================================
+
+
+def _load_ctx(business_context: str = "") -> BusinessContext:
+    """Load business context from explicit input or CLAUDE.md."""
+    return load_business_context(business_context or None)
+
+
+# --- Neuro-marketing tools ---
+
+
+@mcp.tool()
+def skill_neuro_post(
+    topic: str,
+    bias: str = "curiosity_gap",
+    emotion: str = "educate",
+    post_format: str = "story",
+    business_context: str = "",
+) -> str:
+    """Generate a neuro-marketing optimized LinkedIn post prompt.
+
+    Creates a detailed prompt applying neuroscience-backed persuasion
+    principles (cognitive biases + emotional triggers) to write a
+    high-engagement LinkedIn post.
+
+    Args:
+        topic: The subject of the post (e.g., "Why cold outreach is dead").
+        bias: Cognitive bias to leverage. Options:
+              - curiosity_gap: Information gap that forces engagement
+              - loss_aversion: Frame around what the reader LOSES
+              - social_proof: Show others already doing it
+              - authority_bias: Position as expert with data
+              - reciprocity: Give value before asking
+              - anchoring: Use reference points for contrast
+              - scarcity_fomo: Create authentic urgency
+              - storytelling_arc: Narrative with neural coupling
+        emotion: Emotional trigger. Options:
+                 - inspire: Hope, admiration, pride
+                 - educate: Curiosity, surprise, eureka
+                 - provoke: Indignation, challenge beliefs
+                 - connect: Belonging, empathy, shared experience
+                 - activate: Urgency, motivation, push to act
+        post_format: Post structure. Options:
+                     - story: Narrative arc (situation > complication > resolution)
+                     - list: Value list (reciprocity-driven)
+                     - contrarian: Strong opposing take
+                     - tutorial: Step-by-step how-to
+                     - question: Open question (Zeigarnik effect)
+        business_context: Optional business context override (markdown).
+                          If empty, reads from CLAUDE.md automatically.
+
+    Returns the complete prompt ready to generate the post.
+    """
+    ctx = _load_ctx(business_context)
+    skill = NeuroMarketingSkill(ctx)
+    return skill.generate_post_prompt(
+        topic=topic, bias=bias, emotion=emotion, post_format=post_format
+    )
+
+
+@mcp.tool()
+def skill_neuro_catalog() -> str:
+    """Get the complete catalog of cognitive biases and emotional triggers.
+
+    Returns all available neuro-marketing levers with descriptions,
+    principles, hook examples, and usage recommendations.
+    Use this to choose the best bias/emotion combo for a topic.
+    """
+    ctx = _load_ctx()
+    skill = NeuroMarketingSkill(ctx)
+    return skill.get_bias_catalog() + "\n\n---\n\n" + skill.get_emotion_catalog()
+
+
+# --- Copywriting tools ---
+
+
+@mcp.tool()
+def skill_copywriting_post(
+    topic: str,
+    framework: str = "pas",
+    tone: str = "",
+    business_context: str = "",
+) -> str:
+    """Generate a LinkedIn post using a proven copywriting framework.
+
+    Applies structured copywriting formulas to create persuasive posts
+    with clear narrative flow and strong calls to action.
+
+    Args:
+        topic: The subject of the post.
+        framework: Copywriting framework to apply. Options:
+                   - aida: Attention > Interest > Desire > Action
+                   - pas: Problem > Agitation > Solution
+                   - bab: Before > After > Bridge
+                   - 4ps: Promise > Picture > Proof > Push
+                   - app: Agree > Promise > Preview
+                   - slap: Stop > Look > Act > Purchase
+        tone: Optional tone override (e.g., "Expert direct", "Pedagogue chaleureux").
+              If empty, uses tone from CLAUDE.md business context.
+        business_context: Optional business context override (markdown).
+
+    Returns the complete prompt ready to generate the post.
+    """
+    ctx = _load_ctx(business_context)
+    skill = CopywritingSkill(ctx)
+    return skill.generate_copywriting_prompt(
+        topic=topic, framework=framework, tone=tone or None
+    )
+
+
+@mcp.tool()
+def skill_copywriting_ab_test(
+    topic: str,
+    framework_a: str = "pas",
+    framework_b: str = "aida",
+    business_context: str = "",
+) -> str:
+    """Generate two versions of a LinkedIn post for A/B testing.
+
+    Creates two posts on the same topic using different copywriting
+    frameworks so you can test which performs better.
+
+    Args:
+        topic: The subject of both posts.
+        framework_a: First framework (pas, aida, bab, 4ps, app, slap).
+        framework_b: Second framework (different from framework_a).
+        business_context: Optional business context override.
+
+    Returns prompts for both versions with comparison analysis.
+    """
+    ctx = _load_ctx(business_context)
+    skill = CopywritingSkill(ctx)
+    return skill.generate_ab_test_prompt(
+        topic=topic, framework_a=framework_a, framework_b=framework_b
+    )
+
+
+@mcp.tool()
+def skill_copywriting_catalog() -> str:
+    """Get the complete catalog of copywriting frameworks.
+
+    Returns all 6 frameworks with descriptions, step-by-step structures,
+    ideal use cases, and example hooks.
+    Use this to choose the best framework for your topic and goal.
+    """
+    ctx = _load_ctx()
+    skill = CopywritingSkill(ctx)
+    return skill.get_framework_catalog()
+
+
+# --- Engagement tools ---
+
+
+@mcp.tool()
+def skill_engagement_post(
+    topic: str,
+    objective: str = "comments",
+    hook_style: str = "",
+    business_context: str = "",
+) -> str:
+    """Generate a LinkedIn post optimized for a specific engagement metric.
+
+    Uses LinkedIn algorithm knowledge and proven engagement patterns
+    to maximize a chosen metric (comments, saves, leads, shares, or profile visits).
+
+    Args:
+        topic: The subject of the post.
+        objective: Engagement metric to optimize. Options:
+                   - comments: Maximize meaningful comments (best for algo)
+                   - saves: Maximize saves (reference content)
+                   - leads: Generate qualified leads
+                   - shares: Maximize shares (virality)
+                   - profile_visits: Drive profile visits
+        hook_style: Optional specific hook formula. Options:
+                    - "Le Chiffre Choc"
+                    - "L'Anti-Conseil"
+                    - "La Confession"
+                    - "La Question Impossible"
+                    - "Le Comparatif Violent"
+                    - "L'Enumeration Promise"
+                    - "Le Dialogue Direct"
+                    - "L'Observation Silencieuse"
+                    If empty, auto-selects the best hook for the topic.
+        business_context: Optional business context override.
+
+    Returns the post prompt + first comment + response templates.
+    """
+    ctx = _load_ctx(business_context)
+    skill = EngagementSkill(ctx)
+    return skill.generate_engagement_prompt(
+        topic=topic, objective=objective, hook_style=hook_style or None
+    )
+
+
+@mcp.tool()
+def skill_engagement_hooks() -> str:
+    """Get the complete catalog of LinkedIn hook formulas.
+
+    Returns 8 proven hook formulas with effectiveness ratings,
+    examples, and best use cases. Use this to pick the perfect
+    scroll-stopping first line for your post.
+    """
+    ctx = _load_ctx()
+    skill = EngagementSkill(ctx)
+    return skill.get_hook_catalog()
+
+
+@mcp.tool()
+def skill_engagement_ctas() -> str:
+    """Get the complete catalog of CTA strategies by objective.
+
+    Returns call-to-action strategies organized by goal:
+    comments, saves, leads, shares, profile visits.
+    Each with specific techniques and wording examples.
+    """
+    ctx = _load_ctx()
+    skill = EngagementSkill(ctx)
+    return skill.get_cta_catalog()
+
+
+# --- Content Strategy tools ---
+
+
+@mcp.tool()
+def skill_content_calendar(
+    mode: str = "growth_mode",
+    weeks: int = 1,
+    business_context: str = "",
+) -> str:
+    """Generate a strategic LinkedIn content calendar.
+
+    Creates a detailed weekly plan with post topics, hooks, formats,
+    pillar rotation, and funnel stage targeting.
+
+    Args:
+        mode: Strategy mode. Options:
+              - growth_mode: 5 posts/week for audience growth
+              - authority_mode: 3 posts/week for expert positioning
+              - lead_gen_mode: 4 posts/week for lead generation
+        weeks: Number of weeks to plan (1-4).
+        business_context: Optional business context override.
+
+    Returns a complete calendar with hooks, angles, formats, CTAs,
+    and first comments for every post.
+    """
+    ctx = _load_ctx(business_context)
+    skill = ContentStrategySkill(ctx)
+    return skill.generate_strategy_prompt(mode=mode, weeks=min(weeks, 4))
+
+
+@mcp.tool()
+def skill_content_ideas(
+    pillar: str = "expertise",
+    funnel_stage: str = "tofu",
+    count: int = 10,
+    business_context: str = "",
+) -> str:
+    """Brainstorm LinkedIn post ideas for a specific pillar and funnel stage.
+
+    Generates targeted content ideas aligned with your business context,
+    content pillars, and audience funnel position.
+
+    Args:
+        pillar: Content pillar to focus on. Options:
+                - expertise: Technical know-how, tutorials
+                - behind_the_scenes: Authenticity, backstage
+                - industry_vision: Trends, predictions
+                - social_proof: Results, testimonials
+                - personal_brand: Values, convictions
+                - curation: Resources, tools, recommendations
+        funnel_stage: Audience targeting. Options:
+                      - tofu: Top of funnel (awareness, reach)
+                      - mofu: Middle of funnel (trust, authority)
+                      - bofu: Bottom of funnel (conversion)
+        count: Number of ideas to generate (1-20).
+        business_context: Optional business context override.
+
+    Returns ideas with hooks, angles, formats, and difficulty ratings.
+    """
+    ctx = _load_ctx(business_context)
+    skill = ContentStrategySkill(ctx)
+    return skill.generate_content_idea_prompt(
+        pillar=pillar, funnel_stage=funnel_stage, count=min(count, 20)
+    )
+
+
+# --- Business Context tool ---
+
+
+@mcp.tool()
+def skill_show_business_context(business_context: str = "") -> str:
+    """Show the current business context used by all skills.
+
+    Displays the parsed business context from CLAUDE.md or the
+    provided override. Useful for verifying that skills will use
+    the correct brand, audience, and tone information.
+
+    Args:
+        business_context: Optional override. If empty, reads CLAUDE.md.
+
+    Returns the formatted business context block.
+    """
+    ctx = _load_ctx(business_context)
+    if not ctx.has_context():
+        return (
+            "Aucun contexte business charge.\n\n"
+            "Pour personnaliser les skills, remplissez le fichier CLAUDE.md "
+            "a la racine du projet avec vos informations business :\n"
+            "- Identite (marque, secteur)\n"
+            "- Proposition de valeur\n"
+            "- Audience cible (ICP, douleurs)\n"
+            "- Ton et style\n"
+            "- Piliers de contenu\n"
+            "- Objectifs LinkedIn\n\n"
+            "Ou passez le contexte directement via le parametre business_context."
+        )
+    return ctx.to_prompt_block()
+
+
+# ===========================================================================
+#  PROMPTS (MCP prompt templates for AI agents)
 # ===========================================================================
 
 
 @mcp.prompt()
 def linkedin_post_assistant() -> str:
-    """A prompt for helping users create engaging LinkedIn posts."""
-    return (
-        "You are a LinkedIn content assistant. Help the user craft engaging "
-        "LinkedIn posts. Ask about:\n"
-        "1. The topic or message they want to share\n"
-        "2. Their target audience\n"
-        "3. Whether they want to include links, images, or hashtags\n"
-        "4. The desired tone (professional, casual, thought leadership)\n\n"
-        "Then use the linkedin_create_text_post or linkedin_create_link_post "
-        "tool to publish the post. Always suggest relevant hashtags and "
-        "format the post for maximum engagement."
-    )
+    """Assistant for creating high-engagement LinkedIn posts with neuro-marketing."""
+    ctx = _load_ctx()
+    context_block = ctx.to_prompt_block() if ctx.has_context() else ""
+    return f"""Tu es un expert en neuro-marketing et copywriting LinkedIn.
+Tu aides l'utilisateur a creer des posts LinkedIn ultra-engageants.
+
+{context_block}
+
+## Ton processus
+
+1. **Comprendre le sujet** : Demande le sujet/message principal
+2. **Identifier l'objectif** : Leads ? Visibilite ? Autorite ? Communaute ?
+3. **Choisir la strategie** :
+   - Biais cognitif (curiosite, perte, preuve sociale, autorite, reciprocite)
+   - Emotion ciblee (inspirer, eduquer, provoquer, connecter, activer)
+   - Framework copywriting (AIDA, PAS, BAB, 4Ps, APP, SLAP)
+   - Format (story, liste, contrarian, tutoriel, question)
+4. **Generer le post** avec les tools skill_neuro_post ou skill_copywriting_post
+5. **Optimiser l'engagement** avec skill_engagement_post si besoin
+6. **Publier** avec linkedin_create_text_post ou linkedin_create_link_post
+
+## Regles
+
+- Jamais de post generique : toujours specifique au contexte business
+- Toujours un hook en premiere ligne (pattern interrupt)
+- Toujours un CTA en derniere ligne
+- Toujours preparer le premier commentaire
+- 1200-1500 caracteres, bien espace
+- 3-5 hashtags
+- Pas de liens externes dans le corps"""
 
 
 @mcp.prompt()
 def linkedin_network_assistant() -> str:
-    """A prompt for helping users grow their LinkedIn network."""
-    return (
-        "You are a LinkedIn networking assistant. Help the user:\n"
-        "1. Search for relevant people using linkedin_search_people\n"
-        "2. Review their connections with linkedin_get_connections\n"
-        "3. Send personalized connection invitations using linkedin_send_invitation\n\n"
-        "Always suggest personalized messages for invitations to improve "
-        "acceptance rates. Help craft messages that reference shared interests, "
-        "mutual connections, or professional relevance."
-    )
+    """Assistant for growing LinkedIn network with personalized outreach."""
+    ctx = _load_ctx()
+    context_block = ctx.to_prompt_block() if ctx.has_context() else ""
+    return f"""Tu es un expert en growth LinkedIn et networking strategique.
+
+{context_block}
+
+## Ton processus
+
+1. **Definir la cible** : Qui l'utilisateur veut-il atteindre et pourquoi ?
+2. **Rechercher** : Utilise linkedin_search_people pour trouver les bons profils
+3. **Analyser** : Revise linkedin_get_connections pour le reseau existant
+4. **Personnaliser** : Redige des messages d'invitation adaptes a chaque profil
+5. **Envoyer** : Utilise linkedin_send_invitation avec le message personnalise
+
+## Regles pour les messages d'invitation
+
+- Max 300 caracteres (contrainte LinkedIn)
+- Toujours personnaliser (nom, point commun, raison du contact)
+- Pas de pitch dans l'invitation, juste la connexion
+- Formules efficaces :
+  * Point commun : "J'ai vu votre post sur [X], je travaille aussi sur [Y]"
+  * Valeur : "Je partage regulierement du contenu sur [X], je pense que ca pourrait vous interesser"
+  * Mutual : "Nous sommes tous les deux connectes a [nom], [raison]"
+  * Direct : "Votre travail sur [X] m'interesse, j'aimerais echanger"
+
+## Ne jamais :
+- Envoyer des invitations en masse sans personnalisation
+- Pitcher un produit dans le message d'invitation
+- Envoyer plus de 20 invitations par jour"""
+
+
+@mcp.prompt()
+def linkedin_content_strategist() -> str:
+    """Assistant for planning LinkedIn content strategy."""
+    ctx = _load_ctx()
+    context_block = ctx.to_prompt_block() if ctx.has_context() else ""
+    return f"""Tu es un strategiste de contenu LinkedIn senior.
+
+{context_block}
+
+## Ton processus
+
+1. **Audit** : Analyse le contexte business et les objectifs LinkedIn
+2. **Piliers** : Definis ou ajuste les piliers de contenu
+3. **Funnel** : Equilibre le contenu TOFU (40%) / MOFU (35%) / BOFU (25%)
+4. **Calendrier** : Genere un plan avec skill_content_calendar
+5. **Ideation** : Brainstorme des sujets avec skill_content_ideas
+6. **Production** : Pour chaque post, utilise les skills neuro/copywriting
+
+## Outils disponibles
+
+- skill_content_calendar : Calendrier complet (growth / authority / lead gen)
+- skill_content_ideas : Brainstorming d'idees par pilier et funnel stage
+- skill_neuro_post : Generation neuro-marketing
+- skill_copywriting_post : Generation avec frameworks de copywriting
+- skill_engagement_post : Optimisation engagement
+- skill_copywriting_ab_test : A/B test entre frameworks
+
+## Principes
+
+- Coherence : chaque post renforce le positionnement global
+- Variete : alterner formats et tons pour eviter la lassitude
+- Regularite : mieux vaut 3 posts/semaine constants que 7 puis 0
+- Mesure : definir des KPIs clairs pour chaque type de contenu"""
 
 
 # ===========================================================================

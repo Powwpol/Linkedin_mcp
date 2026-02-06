@@ -2,27 +2,29 @@
 
 Serveur MCP (Model Context Protocol) complet pour l'API LinkedIn, construit avec **FastAPI** et le SDK **MCP Python**.
 
-Fournit 3 fonctionnalites principales :
-1. **Recherche de profils** - Rechercher et consulter des profils LinkedIn
-2. **Publication de posts** - Creer et gerer des publications LinkedIn (texte, lien, image)
-3. **Envoi d'invitations** - Envoyer et gerer des demandes de connexion
+**33 tools MCP** organises en 2 couches :
+- **Couche API** (22 tools) : Profils, Posts, Invitations -- operations directes sur l'API LinkedIn
+- **Couche Skills** (11 tools) : Neuro-marketing, Copywriting, Engagement, Strategie de contenu -- generation intelligente
 
 ## Architecture
 
 ```
 src/linkedin_mcp/
-├── __init__.py              # Package init
-├── __main__.py              # python -m linkedin_mcp
 ├── config.py                # Configuration & token storage
 ├── auth.py                  # OAuth 2.0 3-legged flow
-├── linkedin_client.py       # Client HTTP pour l'API LinkedIn
+├── linkedin_client.py       # Client HTTP async pour l'API LinkedIn REST
 ├── fastapi_app.py           # Serveur FastAPI (OAuth callback + REST API)
-├── mcp_server.py            # Serveur MCP (22 tools)
-└── plugins/
-    ├── __init__.py
-    ├── profiles.py          # Plugin recherche de profils
-    ├── posts.py             # Plugin publication de posts
-    └── invitations.py       # Plugin envoi d'invitations
+├── mcp_server.py            # Serveur MCP (33 tools + 3 prompts)
+├── plugins/                 # Couche API LinkedIn
+│   ├── profiles.py          # Recherche de profils
+│   ├── posts.py             # Publication de posts
+│   └── invitations.py       # Envoi d'invitations
+└── skills/                  # Couche intelligence contenu
+    ├── business_context.py  # Chargeur de contexte business (CLAUDE.md)
+    ├── neuromarketing.py    # Biais cognitifs & declencheurs emotionnels
+    ├── copywriting.py       # Frameworks AIDA, PAS, BAB, 4Ps, APP, SLAP
+    ├── engagement.py        # Hooks, CTAs, signaux algorithmiques
+    └── content_strategy.py  # Calendrier, piliers, funnel TOFU/MOFU/BOFU
 ```
 
 ## Prerequis
@@ -47,7 +49,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Copier le fichier d'exemple et configurer vos credentials :
+### 1. Credentials LinkedIn
 
 ```bash
 cp .env.example .env
@@ -63,7 +65,44 @@ LINKEDIN_SCOPES=openid profile email w_member_social r_member_social
 LINKEDIN_API_VERSION=202601
 ```
 
-### Obtenir les credentials LinkedIn
+### 2. Contexte Business (CLAUDE.md)
+
+Editez le fichier `CLAUDE.md` a la racine du projet pour personnaliser tous les skills :
+
+```markdown
+## Identite
+- **Nom / Marque** : MonEntreprise
+- **Secteur** : SaaS B2B
+- **Titre LinkedIn** : CEO @ MonEntreprise | Expert en IA
+
+## Proposition de valeur
+- **Probleme resolu** : Les PME perdent 15h/semaine sur des taches manuelles
+- **Solution** : Plateforme IA no-code d'automatisation
+
+## Audience cible
+- **ICP** : CTO de PME tech, 50-500 salaries
+- **Douleurs principales** : Manque de temps, erreurs manuelles, scaling difficile
+
+## Ton et personnalite
+- **Ton de voix** : Expert accessible et direct
+- **Mots a utiliser** : automatiser, scaler, ROI, pipeline
+- **Mots a eviter** : synergie, disruptif
+- **Emojis** : Oui
+
+## Piliers de contenu
+1. Expertise technique - tutoriels IA et automatisation
+2. Behind the scenes - coulisses de la startup
+3. Vision industrie - tendances IA et futur du travail
+4. Social proof - resultats clients et temoignages
+
+## Objectifs LinkedIn
+- **Objectif principal** : Generer 10 leads qualifies / mois
+- **CTA prefere** : Commentez GUIDE pour recevoir le framework
+```
+
+Le contexte est charge automatiquement par tous les skills. Il peut aussi etre passe en argument a chaque tool via le parametre `business_context`.
+
+### 3. Obtenir les credentials LinkedIn
 
 1. Allez sur https://developer.linkedin.com/
 2. Creez une application
@@ -73,33 +112,24 @@ LINKEDIN_API_VERSION=202601
 
 ## Utilisation
 
-### 1. Demarrer le serveur FastAPI (authentification OAuth)
+### Demarrer le serveur FastAPI (authentification OAuth)
 
 ```bash
-# Via entry point
 linkedin-api
-
-# Ou directement
-PYTHONPATH=src uvicorn linkedin_mcp.fastapi_app:app --reload --port 8000
+# Ou: PYTHONPATH=src uvicorn linkedin_mcp.fastapi_app:app --reload --port 8000
 ```
 
-Ouvrez http://localhost:8000 dans votre navigateur et cliquez sur **Login with LinkedIn** pour vous authentifier.
+Ouvrez http://localhost:8000 puis **Login with LinkedIn**.
+Swagger : http://localhost:8000/docs
 
-Documentation Swagger disponible sur : http://localhost:8000/docs
-
-### 2. Demarrer le serveur MCP
+### Demarrer le serveur MCP
 
 ```bash
-# Via entry point
 linkedin-mcp
-
-# Ou directement
-PYTHONPATH=src python -m linkedin_mcp
+# Ou: PYTHONPATH=src python -m linkedin_mcp
 ```
 
-### 3. Configurer dans Claude Desktop
-
-Ajoutez dans `claude_desktop_config.json` :
+### Configurer dans Claude Desktop
 
 ```json
 {
@@ -117,45 +147,147 @@ Ajoutez dans `claude_desktop_config.json` :
 }
 ```
 
-## Tools MCP disponibles (22 tools)
+---
 
-### Authentification
+## Tools MCP : Couche API (22 tools)
+
+### Authentification (2)
 | Tool | Description |
 |------|-------------|
-| `linkedin_auth_status` | Verifier le statut d'authentification OAuth2 |
-| `linkedin_get_auth_url` | Obtenir l'URL d'autorisation LinkedIn |
+| `linkedin_auth_status` | Statut d'authentification OAuth2 |
+| `linkedin_get_auth_url` | URL d'autorisation LinkedIn |
 
-### Profils (6 tools)
+### Profils (6)
 | Tool | Description |
 |------|-------------|
 | `linkedin_get_my_profile` | Mon profil (OpenID Connect) |
 | `linkedin_get_my_profile_details` | Mon profil detaille (/v2/me) |
 | `linkedin_get_profile` | Profil par person ID |
-| `linkedin_get_connections` | Mes connexions 1er degre |
-| `linkedin_search_people` | Recherche de personnes par mots-cles |
+| `linkedin_get_connections` | Connexions 1er degre |
+| `linkedin_search_people` | Recherche par mots-cles |
 | `linkedin_search_connections` | Recherche dans mes connexions |
 
-### Posts (7 tools)
+### Posts (7)
 | Tool | Description |
 |------|-------------|
-| `linkedin_create_text_post` | Publier un post texte |
-| `linkedin_create_link_post` | Publier un post avec lien/article |
-| `linkedin_create_image_post` | Publier un post avec image |
+| `linkedin_create_text_post` | Post texte (hashtags, mentions) |
+| `linkedin_create_link_post` | Post avec lien/article |
+| `linkedin_create_image_post` | Post avec image (upload auto) |
 | `linkedin_get_my_posts` | Mes publications recentes |
-| `linkedin_get_post` | Obtenir un post par URN |
+| `linkedin_get_post` | Post par URN |
 | `linkedin_delete_post` | Supprimer un post |
 | `linkedin_reshare_post` | Repartager un post |
 
-### Invitations (7 tools)
+### Invitations (7)
 | Tool | Description |
 |------|-------------|
-| `linkedin_send_invitation` | Envoyer une invitation par person ID |
-| `linkedin_send_invitation_by_email` | Envoyer une invitation par email |
+| `linkedin_send_invitation` | Invitation par person ID |
+| `linkedin_send_invitation_by_email` | Invitation par email |
 | `linkedin_get_received_invitations` | Invitations recues |
 | `linkedin_get_sent_invitations` | Invitations envoyees |
-| `linkedin_accept_invitation` | Accepter une invitation |
-| `linkedin_ignore_invitation` | Ignorer une invitation |
-| `linkedin_withdraw_invitation` | Retirer une invitation envoyee |
+| `linkedin_accept_invitation` | Accepter |
+| `linkedin_ignore_invitation` | Ignorer |
+| `linkedin_withdraw_invitation` | Retirer |
+
+---
+
+## Tools MCP : Couche Skills (11 tools)
+
+### Neuro-Marketing (2)
+| Tool | Parametres | Description |
+|------|-----------|-------------|
+| `skill_neuro_post` | `topic`, `bias`, `emotion`, `post_format` | Genere un prompt neuro-optimise |
+| `skill_neuro_catalog` | - | Catalogue des biais cognitifs et emotions |
+
+**Biais cognitifs disponibles** : `curiosity_gap`, `loss_aversion`, `social_proof`, `authority_bias`, `reciprocity`, `anchoring`, `scarcity_fomo`, `storytelling_arc`
+
+**Emotions** : `inspire`, `educate`, `provoke`, `connect`, `activate`
+
+**Formats** : `story`, `list`, `contrarian`, `tutorial`, `question`
+
+### Copywriting (3)
+| Tool | Parametres | Description |
+|------|-----------|-------------|
+| `skill_copywriting_post` | `topic`, `framework`, `tone` | Post avec framework copywriting |
+| `skill_copywriting_ab_test` | `topic`, `framework_a`, `framework_b` | 2 versions A/B test |
+| `skill_copywriting_catalog` | - | Catalogue des 6 frameworks |
+
+**Frameworks** : `aida` (Attention/Interest/Desire/Action), `pas` (Problem/Agitation/Solution), `bab` (Before/After/Bridge), `4ps` (Promise/Picture/Proof/Push), `app` (Agree/Promise/Preview), `slap` (Stop/Look/Act/Purchase)
+
+### Engagement (3)
+| Tool | Parametres | Description |
+|------|-----------|-------------|
+| `skill_engagement_post` | `topic`, `objective`, `hook_style` | Post optimise pour une metrique |
+| `skill_engagement_hooks` | - | 8 formules de hooks LinkedIn |
+| `skill_engagement_ctas` | - | Strategies CTA par objectif |
+
+**Objectifs** : `comments`, `saves`, `leads`, `shares`, `profile_visits`
+
+**Formules de hooks** : Le Chiffre Choc, L'Anti-Conseil, La Confession, La Question Impossible, Le Comparatif Violent, L'Enumeration Promise, Le Dialogue Direct, L'Observation Silencieuse
+
+### Strategie de Contenu (2)
+| Tool | Parametres | Description |
+|------|-----------|-------------|
+| `skill_content_calendar` | `mode`, `weeks` | Calendrier editorial complet |
+| `skill_content_ideas` | `pillar`, `funnel_stage`, `count` | Brainstorming d'idees |
+
+**Modes calendrier** : `growth_mode` (5 posts/sem), `authority_mode` (3/sem), `lead_gen_mode` (4/sem)
+
+**Piliers** : `expertise`, `behind_the_scenes`, `industry_vision`, `social_proof`, `personal_brand`, `curation`
+
+**Funnel** : `tofu` (awareness 40%), `mofu` (consideration 35%), `bofu` (conversion 25%)
+
+### Contexte Business (1)
+| Tool | Description |
+|------|-------------|
+| `skill_show_business_context` | Affiche le contexte business charge |
+
+---
+
+## Prompts MCP (3 assistants pre-configures)
+
+| Prompt | Role |
+|--------|------|
+| `linkedin_post_assistant` | Assistant creation de posts neuro-marketing |
+| `linkedin_network_assistant` | Assistant growth et networking |
+| `linkedin_content_strategist` | Assistant strategie de contenu |
+
+---
+
+## Exemples d'utilisation
+
+### Creer un post neuro-marketing
+
+```python
+# Via MCP tool
+skill_neuro_post(
+    topic="Pourquoi 80% des projets IA echouent",
+    bias="loss_aversion",
+    emotion="provoke",
+    post_format="contrarian"
+)
+# -> Genere un prompt complet, puis utilisez linkedin_create_text_post pour publier
+```
+
+### Generer un calendrier editorial
+
+```python
+skill_content_calendar(mode="growth_mode", weeks=2)
+# -> Plan de 10 posts sur 2 semaines avec hooks, angles, CTAs
+```
+
+### A/B test entre frameworks
+
+```python
+skill_copywriting_ab_test(
+    topic="Comment doubler vos leads LinkedIn en 30 jours",
+    framework_a="pas",
+    framework_b="aida"
+)
+# -> 2 versions du meme post + recommandation
+```
+
+---
 
 ## Endpoints FastAPI
 
@@ -186,27 +318,16 @@ Ajoutez dans `claude_desktop_config.json` :
 - `POST /api/invitations/send-by-email` - Invitation par email
 - `GET /api/invitations/received` - Invitations recues
 - `GET /api/invitations/sent` - Invitations envoyees
-- `POST /api/invitations/accept` - Accepter
-- `POST /api/invitations/ignore` - Ignorer
-- `POST /api/invitations/withdraw` - Retirer
+- `POST /api/invitations/accept` / `ignore` / `withdraw`
 
-## Scopes OAuth2 requis
-
-| Scope | Usage |
-|-------|-------|
-| `openid` | Authentification OpenID Connect |
-| `profile` | Informations de profil basiques |
-| `email` | Adresse email |
-| `w_member_social` | Creer des posts, commentaires, reactions |
-| `r_member_social` | Lire l'activite sociale (Community Management API) |
+---
 
 ## Securite
 
-- Les tokens OAuth2 sont stockes localement dans `token_store.json`
-- Le fichier `token_store.json` est dans `.gitignore`
-- Les credentials LinkedIn doivent etre dans `.env` (jamais commites)
-- Le parametre `state` est utilise pour la protection CSRF
-- Les tokens expirent apres 60 jours (rafraichissables)
+- Les tokens OAuth2 sont stockes localement dans `token_store.json` (`.gitignore`)
+- Les credentials LinkedIn dans `.env` (jamais commites)
+- Protection CSRF via le parametre `state`
+- Tokens expirent apres 60 jours (rafraichissables)
 
 ## Reference API LinkedIn
 
