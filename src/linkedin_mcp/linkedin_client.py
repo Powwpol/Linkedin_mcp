@@ -128,11 +128,29 @@ class LinkedInClient:
 
     # --- Convenience: Get current user's profile info ---
 
-    async def get_current_user(self) -> dict[str, Any]:
-        """Get the authenticated user's profile via /v2/userinfo (OpenID)."""
-        return await self.get("/v2/userinfo")
+    async def get_current_user(self, use_version_header: bool = True) -> dict[str, Any]:
+        """Get the authenticated user's profile via /v2/userinfo (OpenID).
+        
+        Args:
+            use_version_header: Whether to include the LinkedIn-Version header.
+                               Some legacy OIDC endpoints may fail if included.
+        """
+        path = "/v2/userinfo"
+        if not use_version_header:
+            headers = {k: v for k, v in self._default_headers.items() if k != "LinkedIn-Version"}
+            resp = await self._request("GET", path, extra_headers=headers)
+            return resp.json()
+        return await self.get(path)
 
     async def get_current_user_id(self) -> str:
         """Get the authenticated user's person URN sub value."""
-        info = await self.get_current_user()
-        return info["sub"]
+        try:
+            # Try with version header first (202601)
+            info = await self.get_current_user(use_version_header=True)
+            return info["sub"]
+        except LinkedInAPIError as e:
+            if e.status_code == 403:
+                # Fallback without version header for broader compatibility
+                info = await self.get_current_user(use_version_header=False)
+                return info["sub"]
+            raise

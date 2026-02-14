@@ -63,6 +63,17 @@ LINKEDIN_SCOPES=openid profile email w_member_social r_member_social
 LINKEDIN_API_VERSION=202601
 ```
 
+### Important : Configuration de l'API LinkedIn (Portail Dev)
+
+Pour que toutes les fonctionnalités (lecture/écriture de posts) fonctionnent, vous devez effectuer ces étapes sur https://developer.linkedin.com/ :
+
+1.  **Produits (Onglet Products) :** Ajoutez impérativement :
+    -   **Sign In with LinkedIn using OpenID Connect** (Identification)
+    -   **Share on LinkedIn** (Publication de posts - `w_member_social`)
+    -   **Community Management API** (Lecture de vos propres posts - `r_member_social`)
+2.  **Vérification de l'App :** LinkedIn exige souvent que l'application soit liée à une **Page LinkedIn Business** et vérifiée par l'administrateur de cette page.
+3.  **Redirect URLs (Onglet Auth) :** Ajoutez exactement `http://localhost:8000/auth/callback`. Si vous utilisez un tunnel (ngrok), utilisez l'URL HTTPS fournie.
+
 ### Obtenir les credentials LinkedIn
 
 1. Allez sur https://developer.linkedin.com/
